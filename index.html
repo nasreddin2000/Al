@@ -3,40 +3,45 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Şınav Sayacı</title>
+  <title>Şınav Sayacı Pro</title>
   <style>
     * { box-sizing: border-box; touch-action: manipulation; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       background: #121212; color: #fff; text-align: center;
       display: flex; flex-direction: column; align-items: center; justify-content: center;
-      min-height: 100vh; margin: 0; user-select: none; padding: 20px 0;
+      min-height: 100vh; margin: 0; user-select: none; padding: 15px 0;
     }
-    .target-box { font-size: 1.3rem; margin-bottom: 10px; color: #aaa; }
-    input {
-      font-size: 1.5rem; width: 90px; text-align: center; border-radius: 8px;
+    .target-box { font-size: 1.2rem; margin-bottom: 5px; color: #aaa; }
+    input[type="number"] {
+      font-size: 1.5rem; width: 80px; text-align: center; border-radius: 8px;
       border: 2px solid #333; background: #222; color: #fff; padding: 5px; margin-left: 8px;
     }
-    .count { font-size: 6rem; font-weight: 800; margin: 5px 0; color: #00e676; }
+    .count { font-size: 6.5rem; font-weight: 900; margin: 0; color: #00e676; }
     .btn-big {
-      width: 75vw; height: 75vw; max-width: 300px; max-height: 300px;
+      width: 70vw; height: 70vw; max-width: 280px; max-height: 280px;
       border-radius: 24px; border: none;
       background: linear-gradient(145deg, #ff1744, #d50000); color: #fff;
       font-size: 4rem; font-weight: 900; cursor: pointer;
       box-shadow: 0 12px 35px rgba(255, 23, 68, 0.5);
       transition: transform 0.05s ease;
       display: flex; align-items: center; justify-content: center;
+      margin: 15px 0;
     }
     .btn-big:active { transform: scale(0.93); background: #c62828; }
     .btn-mic {
-      margin-top: 20px; background: #2979ff; color: #fff;
+      background: #2979ff; color: #fff;
       border: none; padding: 14px 28px; border-radius: 25px;
       font-size: 1.1rem; font-weight: bold; cursor: pointer;
       box-shadow: 0 5px 15px rgba(41, 121, 255, 0.4);
+      margin-bottom: 15px;
     }
     .btn-mic.active { background: #00e676; color: #000; box-shadow: 0 5px 15px rgba(0, 230, 118, 0.4); }
+    #sens-container { display: none; margin-bottom: 15px; width: 80%; max-width: 300px; }
+    #sens-container label { display: block; font-size: 0.9rem; color: #aaa; margin-bottom: 5px; }
+    input[type="range"] { width: 100%; accent-color: #00e676; }
     .btn-reset {
-      margin-top: 15px; background: transparent; color: #ff5252;
+      background: transparent; color: #ff5252;
       border: 1px solid #ff5252; padding: 10px 24px; border-radius: 20px;
       font-size: 1rem; cursor: pointer;
     }
@@ -52,127 +57,87 @@
 
   <button class="btn-big" onclick="countUp()">BAS</button>
   
-  <button class="btn-mic" id="micBtn" onclick="toggleSpeech()">🎙️ Sesle Saymayı Aç</button>
+  <button class="btn-mic" id="micBtn" onclick="toggleMicrophone()">🎙️ Sese Duyarlılığı Aç</button>
   
+  <div id="sens-container">
+    <label>Mikrofon Hassasiyeti (Çok sayıyorsa düşür)</label>
+    <input type="range" id="sensitivity" min="10" max="100" value="50">
+  </div>
+
   <button class="btn-reset" onclick="resetCount()">Sıfırla</button>
 
   <script>
     let count = 0;
-    let audioCtx = null;
-    let recognition = null;
-    let isListening = false;
+    let playCtx = null;
 
-    function getAudioContext() {
-      if (!audioCtx) {
+    function getPlayContext() {
+      if (!playCtx) {
         const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-        audioCtx = new AudioContextClass();
+        playCtx = new AudioContextClass();
       }
-      if (audioCtx.state === 'suspended') {
-        audioCtx.resume();
-      }
-      return audioCtx;
+      if (playCtx.state === 'suspended') playCtx.resume();
+      return playCtx;
     }
 
-    // Her basışta / ses algılandığında çalacak kısa vuruş sesi
+    // Tok Tıklama Sesi
     function playSinglePressSound() {
       try {
-        const ctx = getAudioContext();
+        const ctx = getPlayContext();
         const now = ctx.currentTime;
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
-
         osc.type = 'triangle';
         osc.frequency.setValueAtTime(320, now);
         osc.frequency.exponentialRampToValueAtTime(70, now + 0.06);
-
         gain.gain.setValueAtTime(0.5, now);
         gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
-
         osc.connect(gain);
         gain.connect(ctx.destination);
-
         osc.start(now);
         osc.stop(now + 0.06);
-      } catch (e) { console.log(e); }
+      } catch (e) {}
     }
 
-    // Her 10 basışta çalacak heyecan verici synth sesi
+    // 10'lu Katlarda Çalacak Ses
     function playTenPressSound() {
       try {
-        const ctx = getAudioContext();
+        const ctx = getPlayContext();
         const now = ctx.currentTime;
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.type = 'sawtooth';
         osc.frequency.setValueAtTime(220, now);
         osc.frequency.exponentialRampToValueAtTime(880, now + 0.2);
-
         gain.gain.setValueAtTime(0.3, now);
         gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
-
         osc.connect(gain);
         gain.connect(ctx.destination);
         osc.start(now);
         osc.stop(now + 0.25);
-
-        const notes = [523.25, 659.25, 783.99, 1046.50];
-        notes.forEach((freq, idx) => {
-          const o = ctx.createOscillator();
-          const g = ctx.createGain();
-          o.type = 'triangle';
-          o.frequency.value = freq;
-          const startTime = now + (idx * 0.05);
-          g.gain.setValueAtTime(0.3, startTime);
-          g.gain.exponentialRampToValueAtTime(0.001, startTime + 0.1);
-          o.connect(g);
-          g.connect(ctx.destination);
-          o.start(startTime);
-          o.stop(startTime + 0.1);
-        });
-      } catch (e) { console.log(e); }
+      } catch (e) {}
     }
 
-    // Hedefe ulaşınca çalacak agresif zafer sesi
+    // Hedef Zafer Sesi
     function playAggressiveGoalSound() {
       try {
-        const ctx = getAudioContext();
+        const ctx = getPlayContext();
         const now = ctx.currentTime;
-        const pattern = [
-          { freq: 160, duration: 0.12, delay: 0 },
-          { freq: 220, duration: 0.12, delay: 0.14 },
-          { freq: 280, duration: 0.12, delay: 0.28 },
-          { freq: 440, duration: 0.7, delay: 0.42 }
-        ];
-
-        pattern.forEach(item => {
-          const startTime = now + item.delay;
-          const osc1 = ctx.createOscillator();
-          const osc2 = ctx.createOscillator();
+        const freqs = [160, 220, 280, 440];
+        freqs.forEach((freq, idx) => {
+          const startTime = now + (idx * 0.14);
+          const duration = idx === 3 ? 0.7 : 0.12;
+          const osc = ctx.createOscillator();
           const gain = ctx.createGain();
-
-          osc1.type = 'sawtooth';
-          osc2.type = 'square';
-          osc1.frequency.setValueAtTime(item.freq, startTime);
-          osc2.frequency.setValueAtTime(item.freq * 1.01, startTime);
-
-          const filter = ctx.createBiquadFilter();
-          filter.type = 'lowpass';
-          filter.frequency.setValueAtTime(3500, startTime);
-
-          gain.gain.setValueAtTime(0.5, startTime);
-          gain.gain.exponentialRampToValueAtTime(0.001, startTime + item.duration);
-
-          osc1.connect(filter);
-          osc2.connect(filter);
-          filter.connect(gain);
+          osc.type = 'square';
+          osc.frequency.setValueAtTime(freq, startTime);
+          gain.gain.setValueAtTime(0.4, startTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+          osc.connect(gain);
           gain.connect(ctx.destination);
-
-          osc1.start(startTime);
-          osc2.start(startTime);
-          osc1.stop(startTime + item.duration);
-          osc2.stop(startTime + item.duration);
+          osc.start(startTime);
+          osc.stop(startTime + duration);
         });
-      } catch (e) { console.log(e); }
+      } catch (e) {}
     }
 
     function countUp() {
@@ -194,47 +159,73 @@
       document.getElementById('counter').innerText = count;
     }
 
-    // SESLE SAYMA (MİKROFON) KODLARI
-    function toggleSpeech() {
+    // YENİ: SES ŞİDDETİ ÖLÇÜMÜ (GÜRÜLTÜ ALGILAYICI)
+    let audioStream = null;
+    let micCtx = null;
+    let analyser = null;
+    let dataArray = null;
+    let isListening = false;
+    let lastCountTime = 0;
+
+    async function toggleMicrophone() {
       const micBtn = document.getElementById('micBtn');
+      const sensContainer = document.getElementById('sens-container');
       
-      if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-        alert("Tarayıcınız ses tanımayı desteklemiyor.");
+      if (isListening) {
+        if (audioStream) audioStream.getTracks().forEach(track => track.stop());
+        if (micCtx) { micCtx.close(); micCtx = null; }
+        isListening = false;
+        micBtn.innerText = "🎙️ Sese Duyarlılığı Aç";
+        micBtn.classList.remove('active');
+        sensContainer.style.display = 'none';
         return;
       }
 
-      if (isListening) {
-        if (recognition) recognition.stop();
-        isListening = false;
-        micBtn.innerText = "🎙️ Sesle Saymayı Aç";
-        micBtn.classList.remove('active');
-      } else {
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        recognition = new SpeechRecognition();
-        recognition.lang = 'tr-TR';
-        recognition.continuous = true;
-        recognition.interimResults = false;
-
-        recognition.onresult = function(event) {
-          countUp(); // Her kelime/ses algılandığında sayacı 1 arttır
-        };
-
-        recognition.onerror = function(event) {
-          console.log('Ses hatası:', event.error);
-        };
-
-        recognition.onend = function() {
-          if (isListening) {
-            recognition.start(); // Kapanırsa otomatik tekrar başlat
-          }
-        };
-
-        recognition.start();
+      try {
+        // Telefonun yankı yapmaması için echoCancellation açıyoruz
+        audioStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true }, video: false });
+        
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        micCtx = new AudioContextClass();
+        const source = micCtx.createMediaStreamSource(audioStream);
+        
+        analyser = micCtx.createAnalyser();
+        analyser.fftSize = 256;
+        source.connect(analyser);
+        dataArray = new Uint8Array(analyser.frequencyBinCount);
+        
         isListening = true;
-        micBtn.innerText = "🛑 Dinleniyor... (Konuş/Say)";
+        micBtn.innerText = "🛑 Dinleniyor... (Ses Çıkar)";
         micBtn.classList.add('active');
-        getAudioContext();
+        sensContainer.style.display = 'block';
+        
+        getPlayContext(); // Tıklama seslerinin motorunu ısıt
+        detectSound();
+      } catch (err) {
+        alert("Mikrofon açılamadı! Chrome'dan mikrofon izni verdiğine emin ol.");
       }
+    }
+
+    function detectSound() {
+      if (!isListening) return;
+
+      analyser.getByteFrequencyData(dataArray);
+      let sum = 0;
+      for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
+      let averageVolume = sum / dataArray.length;
+
+      const now = Date.now();
+      const userSens = parseInt(document.getElementById('sensitivity').value);
+      // Hassasiyete göre baraj limiti belirliyoruz (Slider arttıkça baraj düşer, daha kolay sayar)
+      const actualThreshold = 120 - userSens; 
+
+      // 900 milisaniye bekleme süresi koyduk ki tek seste peş peşe 2-3 kere saymasın
+      if (averageVolume > actualThreshold && (now - lastCountTime > 900)) {
+        countUp();
+        lastCountTime = now;
+      }
+
+      requestAnimationFrame(detectSound);
     }
   </script>
 </body>
