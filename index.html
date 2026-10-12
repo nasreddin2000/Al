@@ -3,229 +3,177 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Şınav Sayacı Pro</title>
+  <title>Sessiz Göz Asistanı</title>
   <style>
     * { box-sizing: border-box; touch-action: manipulation; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       background: #121212; color: #fff; text-align: center;
       display: flex; flex-direction: column; align-items: center; justify-content: center;
-      min-height: 100vh; margin: 0; user-select: none; padding: 15px 0;
+      min-height: 100vh; margin: 0; user-select: none; padding: 20px; transition: background 0.5s;
     }
-    .target-box { font-size: 1.2rem; margin-bottom: 5px; color: #aaa; }
+    .status-text { font-size: 1.8rem; font-weight: bold; margin-bottom: 20px; color: #fff; }
+    .timer-display {
+      font-size: 6.5rem; font-weight: 900; margin: 15px 0;
+      text-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    }
+    .settings {
+      background: #222; padding: 15px; border-radius: 15px; margin-bottom: 30px;
+      display: flex; gap: 20px; border: 1px solid #333;
+    }
+    .setting-group { display: flex; flex-direction: column; align-items: center; }
+    .setting-group label { font-size: 0.9rem; color: #aaa; margin-bottom: 5px; }
     input[type="number"] {
-      font-size: 1.5rem; width: 80px; text-align: center; border-radius: 8px;
-      border: 2px solid #333; background: #222; color: #fff; padding: 5px; margin-left: 8px;
+      font-size: 1.5rem; width: 75px; text-align: center; border-radius: 8px;
+      border: 2px solid #444; background: #111; color: #00e676; padding: 5px;
     }
-    .count { font-size: 6.5rem; font-weight: 900; margin: 0; color: #00e676; }
-    .btn-big {
-      width: 70vw; height: 70vw; max-width: 280px; max-height: 280px;
-      border-radius: 24px; border: none;
-      background: linear-gradient(145deg, #ff1744, #d50000); color: #fff;
-      font-size: 4rem; font-weight: 900; cursor: pointer;
-      box-shadow: 0 12px 35px rgba(255, 23, 68, 0.5);
-      transition: transform 0.05s ease;
-      display: flex; align-items: center; justify-content: center;
-      margin: 15px 0;
+    .btn-main {
+      width: 80vw; max-width: 300px; padding: 20px; border-radius: 20px; border: none;
+      background: linear-gradient(145deg, #2979ff, #1565c0); color: #fff;
+      font-size: 1.8rem; font-weight: bold; cursor: pointer;
+      box-shadow: 0 10px 30px rgba(41, 121, 255, 0.4); transition: transform 0.1s;
     }
-    .btn-big:active { transform: scale(0.93); background: #c62828; }
-    .btn-mic {
-      background: #2979ff; color: #fff;
-      border: none; padding: 14px 28px; border-radius: 25px;
-      font-size: 1.1rem; font-weight: bold; cursor: pointer;
-      box-shadow: 0 5px 15px rgba(41, 121, 255, 0.4);
-      margin-bottom: 15px;
-    }
-    .btn-mic.active { background: #00e676; color: #000; box-shadow: 0 5px 15px rgba(0, 230, 118, 0.4); }
-    #sens-container { display: none; margin-bottom: 15px; width: 80%; max-width: 300px; }
-    #sens-container label { display: block; font-size: 0.9rem; color: #aaa; margin-bottom: 5px; }
-    input[type="range"] { width: 100%; accent-color: #00e676; }
-    .btn-reset {
-      background: transparent; color: #ff5252;
-      border: 1px solid #ff5252; padding: 10px 24px; border-radius: 20px;
-      font-size: 1rem; cursor: pointer;
-    }
+    .btn-main:active { transform: scale(0.95); }
+    .btn-main.stop { background: linear-gradient(145deg, #ff1744, #d50000); box-shadow: 0 10px 30px rgba(255, 23, 68, 0.4); }
+    
+    .vibrate-info { margin-top: 25px; color: #888; font-size: 0.9rem; }
+
+    /* Durum Renkleri */
+    body.mode-read { background: #121212; }
+    body.mode-rest { background: #004d40; } /* Uzağa bakarken dinlendirici yeşil */
   </style>
 </head>
-<body>
+<body class="mode-read" id="bg">
 
-  <div class="target-box">
-    Hedef: <input type="number" id="target" value="30" min="1">
+  <div class="settings" id="settings">
+    <div class="setting-group">
+      <label>Okuma (Dk)</label>
+      <input type="number" id="readTime" value="20" min="1">
+    </div>
+    <div class="setting-group">
+      <label>Uzağa Bak (Sn)</label>
+      <input type="number" id="restTime" value="20" min="5">
+    </div>
   </div>
 
-  <div class="count" id="counter">0</div>
-
-  <button class="btn-big" onclick="countUp()">BAS</button>
+  <div class="status-text" id="status">KİTAP OKUMA VAKTİ 📖</div>
   
-  <button class="btn-mic" id="micBtn" onclick="toggleMicrophone()">🎙️ Sese Duyarlılığı Aç</button>
-  
-  <div id="sens-container">
-    <label>Mikrofon Hassasiyeti (Çok sayıyorsa düşür)</label>
-    <input type="range" id="sensitivity" min="10" max="100" value="50">
-  </div>
+  <div class="timer-display" id="timer">20:00</div>
 
-  <button class="btn-reset" onclick="resetCount()">Sıfırla</button>
+  <button class="btn-main" id="startBtn" onclick="toggleTimer()">BAŞLA</button>
+
+  <div class="vibrate-info">📳 Uygulama sadece titreşimle uyarır.</div>
 
   <script>
-    let count = 0;
-    let playCtx = null;
+    let timeLeft = 0;
+    let timerInterval = null;
+    let isRunning = false;
+    let isResting = false;
+    let wakeLock = null;
 
-    function getPlayContext() {
-      if (!playCtx) {
-        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-        playCtx = new AudioContextClass();
-      }
-      if (playCtx.state === 'suspended') playCtx.resume();
-      return playCtx;
-    }
-
-    // Tok Tıklama Sesi
-    function playSinglePressSound() {
+    // Telefon ekranının kapanmasını engelleme
+    async function requestWakeLock() {
       try {
-        const ctx = getPlayContext();
-        const now = ctx.currentTime;
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(320, now);
-        osc.frequency.exponentialRampToValueAtTime(70, now + 0.06);
-        gain.gain.setValueAtTime(0.5, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(now);
-        osc.stop(now + 0.06);
-      } catch (e) {}
+        if ('wakeLock' in navigator) {
+          wakeLock = await navigator.wakeLock.request('screen');
+        }
+      } catch (err) {}
     }
 
-    // 10'lu Katlarda Çalacak Ses
-    function playTenPressSound() {
-      try {
-        const ctx = getPlayContext();
-        const now = ctx.currentTime;
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(220, now);
-        osc.frequency.exponentialRampToValueAtTime(880, now + 0.2);
-        gain.gain.setValueAtTime(0.3, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(now);
-        osc.stop(now + 0.25);
-      } catch (e) {}
-    }
-
-    // Hedef Zafer Sesi
-    function playAggressiveGoalSound() {
-      try {
-        const ctx = getPlayContext();
-        const now = ctx.currentTime;
-        const freqs = [160, 220, 280, 440];
-        freqs.forEach((freq, idx) => {
-          const startTime = now + (idx * 0.14);
-          const duration = idx === 3 ? 0.7 : 0.12;
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.type = 'square';
-          osc.frequency.setValueAtTime(freq, startTime);
-          gain.gain.setValueAtTime(0.4, startTime);
-          gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.start(startTime);
-          osc.stop(startTime + duration);
-        });
-      } catch (e) {}
-    }
-
-    function countUp() {
-      let target = parseInt(document.getElementById('target').value) || 0;
-      count++;
-      document.getElementById('counter').innerText = count;
-
-      if (target > 0 && count === target) {
-        playAggressiveGoalSound();
-      } else if (count > 0 && count % 10 === 0) {
-        playTenPressSound();
-      } else {
-        playSinglePressSound();
+    function releaseWakeLock() {
+      if (wakeLock !== null) {
+        wakeLock.release().then(() => { wakeLock = null; });
       }
     }
 
-    function resetCount() {
-      count = 0;
-      document.getElementById('counter').innerText = count;
-    }
-
-    // YENİ: SES ŞİDDETİ ÖLÇÜMÜ (GÜRÜLTÜ ALGILAYICI)
-    let audioStream = null;
-    let micCtx = null;
-    let analyser = null;
-    let dataArray = null;
-    let isListening = false;
-    let lastCountTime = 0;
-
-    async function toggleMicrophone() {
-      const micBtn = document.getElementById('micBtn');
-      const sensContainer = document.getElementById('sens-container');
+    // TİTREŞİM MOTORU
+    function triggerVibration(type) {
+      if (!('vibrate' in navigator)) return; // Cihaz titreşimi desteklemiyorsa pas geç
       
-      if (isListening) {
-        if (audioStream) audioStream.getTracks().forEach(track => track.stop());
-        if (micCtx) { micCtx.close(); micCtx = null; }
-        isListening = false;
-        micBtn.innerText = "🎙️ Sese Duyarlılığı Aç";
-        micBtn.classList.remove('active');
-        sensContainer.style.display = 'none';
-        return;
-      }
-
-      try {
-        // Telefonun yankı yapmaması için echoCancellation açıyoruz
-        audioStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true }, video: false });
-        
-        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-        micCtx = new AudioContextClass();
-        const source = micCtx.createMediaStreamSource(audioStream);
-        
-        analyser = micCtx.createAnalyser();
-        analyser.fftSize = 256;
-        source.connect(analyser);
-        dataArray = new Uint8Array(analyser.frequencyBinCount);
-        
-        isListening = true;
-        micBtn.innerText = "🛑 Dinleniyor... (Ses Çıkar)";
-        micBtn.classList.add('active');
-        sensContainer.style.display = 'block';
-        
-        getPlayContext(); // Tıklama seslerinin motorunu ısıt
-        detectSound();
-      } catch (err) {
-        alert("Mikrofon açılamadı! Chrome'dan mikrofon izni verdiğine emin ol.");
+      if (type === 'start') {
+        navigator.vibrate(150); // Tek kısa titreşim
+      } else if (type === 'rest') {
+        // Okuma bitti uyarısı: Uzun - Uzun - ÇOK UZUN
+        navigator.vibrate([500, 200, 500, 200, 1000]);
+      } else if (type === 'read') {
+        // Dinlenme bitti, kitaba dön uyarısı: Kısa - Kısa
+        navigator.vibrate([200, 150, 200]);
       }
     }
 
-    function detectSound() {
-      if (!isListening) return;
+    function formatTime(seconds) {
+      const m = Math.floor(seconds / 60);
+      const s = seconds % 60;
+      return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    }
 
-      analyser.getByteFrequencyData(dataArray);
-      let sum = 0;
-      for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
-      let averageVolume = sum / dataArray.length;
+    function updateDisplay() {
+      document.getElementById('timer').innerText = formatTime(timeLeft);
+    }
 
-      const now = Date.now();
-      const userSens = parseInt(document.getElementById('sensitivity').value);
-      // Hassasiyete göre baraj limiti belirliyoruz (Slider arttıkça baraj düşer, daha kolay sayar)
-      const actualThreshold = 120 - userSens; 
+    function switchMode() {
+      isResting = !isResting;
+      
+      const readMinutes = parseInt(document.getElementById('readTime').value) || 20;
+      const restSeconds = parseInt(document.getElementById('restTime').value) || 20;
 
-      // 900 milisaniye bekleme süresi koyduk ki tek seste peş peşe 2-3 kere saymasın
-      if (averageVolume > actualThreshold && (now - lastCountTime > 900)) {
-        countUp();
-        lastCountTime = now;
+      if (isResting) {
+        timeLeft = restSeconds;
+        document.getElementById('status').innerText = "UZAĞA BAK, DİNLEN 👁️";
+        document.getElementById('bg').className = "mode-rest";
+        triggerVibration('rest');
+      } else {
+        timeLeft = readMinutes * 60;
+        document.getElementById('status').innerText = "KİTAP OKUMA VAKTİ 📖";
+        document.getElementById('bg').className = "mode-read";
+        triggerVibration('read');
       }
+      updateDisplay();
+    }
 
-      requestAnimationFrame(detectSound);
+    function toggleTimer() {
+      const btn = document.getElementById('startBtn');
+      const settings = document.getElementById('settings');
+
+      if (isRunning) {
+        clearInterval(timerInterval);
+        isRunning = false;
+        btn.innerText = "DEVAM ET";
+        btn.classList.remove('stop');
+        settings.style.display = "flex";
+        releaseWakeLock();
+      } else {
+        if (timeLeft === 0) {
+          const readMinutes = parseInt(document.getElementById('readTime').value) || 20;
+          timeLeft = readMinutes * 60;
+          isResting = false;
+          document.getElementById('status').innerText = "KİTAP OKUMA VAKTİ 📖";
+          document.getElementById('bg').className = "mode-read";
+        }
+        
+        triggerVibration('start');
+        requestWakeLock();
+        
+        updateDisplay();
+        isRunning = true;
+        btn.innerText = "DURAKLAT";
+        btn.classList.add('stop');
+        settings.style.display = "none";
+
+        timerInterval = setInterval(() => {
+          timeLeft--;
+          if (timeLeft <= 0) {
+            switchMode();
+          } else {
+            updateDisplay();
+          }
+        }, 1000);
+      }
+    }
+
+    window.onload = () => {
+      const readMinutes = parseInt(document.getElementById('readTime').value) || 20;
+      document.getElementById('timer').innerText = formatTime(readMinutes * 60);
     }
   </script>
 </body>
